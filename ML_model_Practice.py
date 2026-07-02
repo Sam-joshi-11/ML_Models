@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import optuna
 import matplotlib.pyplot as plt
+from IPython.display import display
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
@@ -211,13 +212,13 @@ plt.title("Important Features")
 plt.xlabel("Important")
 plt.ylabel("Features")
 plt.show()
-
+#--------------------------------------
 #1. Baseline Model
 model = XGBClassifier(random_state=42)
 model.fit(X_train,y_train)
 y_pred = model.predict(X_test)
 print("Baseline Accuracy:",accuracy_score(y_test,y_pred))
-
+#------------------------------------------------------
 #2. Grid Search (simple)
 param_grid = {
     'n_estimators':[50,100,15,],
@@ -231,8 +232,123 @@ grid = GridSearchCV(
     scoring='accuracy'
 )
 grid.fit(X_train,y_train)
-print("Best Parameters")
+print("\nBest Parameters")
 print(grid.best_params_)
 best_model = grid.best_estimator_
 prediction = best_model.predict(X_test)
-print("Accuracy:",accuracy_score(y_test,prediction))
+print("Grid Search Accuracy:",accuracy_score(y_test,prediction))
+#---------------------------------------------------
+
+#3.Random Search (Simple)
+
+random_params = {
+    'n_estimators':[50,100,150,200],
+    'max_depth':[3,4,5,6,7],
+    'learning_rate':[0.01,0.05,0.1,0.2]
+}
+random_search = RandomizedSearchCV(
+    estimator = XGBClassifier(random_state=42),
+    param_distributions=random_params,
+    n_iter=10,
+    cv=3,
+    random_state=42
+
+)
+
+random_search.fit(X_train,y_train)
+print("\nBest Parameters:")
+print(random_search.best_params_)
+best_random = random_search.best_estimator_
+prediction1 = best_random.predict(X_test)
+
+print("Randomized Search Accuracy:",accuracy_score(y_test,prediction1))
+
+#4.Optuna
+def objective(trail):
+    model = XGBClassifier(
+        n_estimators = trail.suggest_int("n_estimators",50,200),
+        max_depth = trail.suggest_int("max_depth",3,7),
+        learning_rate = trail.suggest_float("learning_rate",0.01,0.2),
+        random_state=42
+    )
+    model.fit(X_train,y_train)
+    prediction = model.predict(X_test)
+    return accuracy_score(y_test,prediction)
+
+study = optuna.create_study(direction="maximize")
+study.optimize(objective,n_trials=20)
+print(study.best_params)
+best_model = XGBClassifier(
+    **study.best_params,
+    random_state = 42
+)
+best_model.fit(X_train,y_train)
+prediction = best_model.predict(X_test)
+print("\nOptuna Accuracy:",accuracy_score(y_test,prediction))
+#----------------------------------------------------------------------------
+
+from imblearn.over_sampling import RandomOverSampler
+ros = RandomOverSampler(random_state=42)
+x_sample,y_sample = ros.fit_resample(X_train,y_train)
+
+from imblearn.under_sampling import RandomUnderSampler
+rus = RandomUnderSampler(random_state=42)
+x_sample,y_sample = rus.fit_resample(X_train,y_train)
+
+from imblearn.over_sampling import SMOTE
+smote = SMOTE(random_state=42)
+x_sample,y_sample = smote.fit_resample(X_train,y_train)
+
+print(y_sample.value_counts())
+
+from sklearn.tree import DecisionTreeClassifier
+model = DecisionTreeClassifier(class_weight="balanced")
+model.fit(X_train,y_train)
+
+#xgb
+ratio = len(y_train[y_train==0])/len(y_train[y_train==1])
+model = XGBClassifier(scale_pos_weights = ratio,random_state = 42)
+model.fit(X_train,y_train)
+
+prob = model.predict_proba(X_test)[:,1]
+threshold = 0.40
+predictions = (prob>=threshold).astype(int)
+
+for threshold in [0.5,0.4,0.4]:
+    predictions = (prob>=threshold).astype(int)
+    print(precision_score(y_test,predictions))
+
+#Summary plot
+import shap
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X_test)
+
+shap.summary_plot(
+    shap_values,
+    X_test,
+    feature_names = X.columns
+)
+
+import matplotlib.pyplot as plt
+
+shap.force_plot(
+    explainer.expected_value,
+    shap_values[0],
+    X_test.iloc[0],
+    matplotlib=True,
+    show=True
+)
+
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
