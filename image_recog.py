@@ -6,7 +6,7 @@ from sklearn.metrics import confusion_matrix,classification_report
 (X_train,y_train),(X_test,y_test)=tf.keras.datasets.mnist.load_data()
 print("Training Images :",X_train.shape)
 
-plt.imshow(X_train[8],cmap='BuGn')
+plt.imshow(X_train[0],cmap='gray')
 plt.show()
 X_train=X_train/255.0
 X_test=X_test/255.0
@@ -62,3 +62,9 @@ sns.heatmap(cm,cmap='Blues',fmt='d')
 plt.show()
 
 print("\nClassification report:",classification_report(y_test,predictions))
+
+'''model.save("mnist.keras")
+print("saved")
+
+load_model = tf.keras.model("mnist.keras")
+print("model loaded")'''
