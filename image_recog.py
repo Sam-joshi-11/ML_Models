@@ -66,5 +66,8 @@ print("\nClassification report:",classification_report(y_test,predictions))
 '''model.save("mnist.keras")
 print("saved")
 
-load_model = tf.keras.model("mnist.keras")
+load_data = tf.keras.model("mnist.keras")
 print("model loaded")'''
+
+
+
